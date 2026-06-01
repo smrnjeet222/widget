@@ -1,6 +1,7 @@
 import type {
   ExtendedTransactionInfo,
   FullStatusData,
+  Route,
   StatusResponse,
   TokenAmount,
 } from '@lifi/sdk'
@@ -15,6 +16,8 @@ interface StatusCompletedProps {
   status: StatusResponse
   onSeeDetails: () => void
   onDone: () => void
+  frozenRoute?: Route
+  recipientAddress?: string | null
 }
 
 const ICON_SIZE = 96
@@ -23,6 +26,8 @@ export function StatusCompleted({
   status,
   onSeeDetails,
   onDone,
+  frozenRoute,
+  recipientAddress,
 }: StatusCompletedProps): JSX.Element {
   const { t } = useTranslation()
   const full = status as FullStatusData
@@ -70,7 +75,12 @@ export function StatusCompleted({
             {t('checkout.transactionStatus.success')}
           </Typography>
         </Stack>
-        <StatusStepList status={full} phase="done" />
+        <StatusStepList
+          status={full}
+          phase="done"
+          frozenRoute={frozenRoute}
+          recipientAddress={recipientAddress}
+        />
       </Card>
 
       {receivingTokenAmount ? (

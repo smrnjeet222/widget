@@ -30,9 +30,11 @@ import { checkoutNavigationRoutes } from '../../utils/navigationRoutes.js'
 import { SelectSourceFundingOptions } from './SelectSourceFundingOptions.js'
 import { SelectSourceMainColumn } from './SelectSourceLayout.js'
 
-const CASH_DEFAULT_FROM_CHAIN_ID = 1
-const CASH_DEFAULT_FROM_TOKEN_ADDRESS =
-  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+// Cash and exchange deposits aren't wallet-funded, so they pin the source to
+// USDC on Ethereum mainnet rather than inheriting the prior wallet/transfer
+// selection.
+const DEFAULT_FROM_CHAIN_ID = 1
+const DEFAULT_FROM_TOKEN_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 
 export const SelectSourcePage: React.FC = () => {
   const { t } = useTranslation()
@@ -155,8 +157,14 @@ export const SelectSourcePage: React.FC = () => {
   const handleConnectExchange = useCallback(() => {
     overrideExchanges([...INTENT_FACTORY_ONLY])
     setFundingSource('exchange')
+    // Exchange deposits are limited to USDC/USDT/ETH on mainnet — pin the
+    // from-chain and seed a valid mainnet token so a stale non-mainnet
+    // selection doesn't leak into the curated token list, balance, or quote.
+    setFieldValue(FormKeyHelper.getChainKey('from'), DEFAULT_FROM_CHAIN_ID)
+    setFieldValue(FormKeyHelper.getTokenKey('from'), DEFAULT_FROM_TOKEN_ADDRESS)
+    setFieldValue(FormKeyHelper.getAmountKey('from'), '')
     goToToken()
-  }, [goToToken, overrideExchanges, setFundingSource])
+  }, [goToToken, overrideExchanges, setFieldValue, setFundingSource])
 
   const handleDepositCash = useCallback(() => {
     overrideExchanges([...INTENT_FACTORY_ONLY])
@@ -165,11 +173,8 @@ export const SelectSourcePage: React.FC = () => {
     // mainnet — otherwise the form keeps the prior wallet/transfer selection
     // (default ETH) and the quote, balance, and Transak session all run
     // against the wrong token.
-    setFieldValue(FormKeyHelper.getChainKey('from'), CASH_DEFAULT_FROM_CHAIN_ID)
-    setFieldValue(
-      FormKeyHelper.getTokenKey('from'),
-      CASH_DEFAULT_FROM_TOKEN_ADDRESS
-    )
+    setFieldValue(FormKeyHelper.getChainKey('from'), DEFAULT_FROM_CHAIN_ID)
+    setFieldValue(FormKeyHelper.getTokenKey('from'), DEFAULT_FROM_TOKEN_ADDRESS)
     setFieldValue(FormKeyHelper.getAmountKey('from'), '')
     navigate({ to: checkoutNavigationRoutes.selectCash })
   }, [navigate, overrideExchanges, setFieldValue, setFundingSource])

@@ -1,20 +1,23 @@
-import type { FullStatusData, Substatus } from '@lifi/sdk'
+import type {
+  ExtendedTransactionInfo,
+  FullStatusData,
+  Substatus,
+} from '@lifi/sdk'
 import {
+  formatTokenAmount,
   navigationRoutes,
   PageContainer,
-  shortenAddress,
   useChain,
   useContactSupport,
-  useFieldValues,
   useHeader,
-  useToken,
 } from '@lifi/widget/shared'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
-import { Link, Stack, Typography } from '@mui/material'
+import { Link } from '@mui/material'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { type JSX, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckoutStatusScreen } from '../../components/CheckoutStatusScreen.js'
+import { useCheckoutStatusSources } from '../../hooks/useCheckoutStatusSources.js'
 import { useCheckoutTransactionStatus } from '../../hooks/useCheckoutTransactionStatus.js'
 import { usePendingCheckoutWriter } from '../../hooks/usePendingCheckoutWriter.js'
 import { useResumeKey } from '../../hooks/useResumeKey.js'
@@ -23,14 +26,6 @@ import { useCheckoutFlowStore } from '../../stores/useCheckoutFlowStore.js'
 import { useCheckoutToastStore } from '../../stores/useCheckoutToastStore.js'
 import { getReceivingTxHash } from '../../utils/depositAddressStatus.js'
 import { checkoutNavigationRoutes } from '../../utils/navigationRoutes.js'
-import {
-  getPendingSimulationDuration,
-  getSimulatedFundingSource,
-  getSimulatedOnRampFailure,
-  getSimulatedSubstatus,
-  getWatchingSimulationDuration,
-  isTransactionStatusSimulationKind,
-} from '../../utils/transactionStatusSimulation.js'
 import { StatusCompleted } from './StatusCompleted.js'
 import { StatusExecuting } from './StatusExecuting.js'
 import { StatusWatching } from './StatusWatching.js'
@@ -40,7 +35,6 @@ interface StatusSearch {
   transactionHash?: string
   depositAddress?: string
   fromChain?: number
-  simulateTransactionStatus?: string
   walletDisconnected?: boolean
   resumed?: string
 }
@@ -48,12 +42,12 @@ interface StatusSearch {
 // Minimum visible hold so fast-resolving txs still show the executing state.
 const MIN_EXECUTING_MS = 2500
 
+// Intent-retrying substatuses are intentionally NOT here — they stay on the
+// normal executing status screen instead of a dedicated "retrying" screen.
 const COMPACT_VARIANT_SUBSTATUSES = new Set<Substatus>([
   'REFUNDED',
   'PARTIAL',
   'REFUND_IN_PROGRESS',
-  'INTENT_FAILED_RETRYABLE',
-  'INTENT_SIMULATION_FAILURE',
 ])
 
 export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
@@ -64,140 +58,24 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
   const depositAddress = search.depositAddress ?? null
   const fromChain =
     typeof search.fromChain === 'number' ? search.fromChain : null
-  const simulate = isTransactionStatusSimulationKind(
-    search.simulateTransactionStatus
-  )
-    ? search.simulateTransactionStatus
-    : null
   const walletDisconnected = search.walletDisconnected === true
 
-  // Dev-only URL-driven overrides for status simulation.
-  const simulatedSubstatus = getSimulatedSubstatus()
-  const simulatedOnRampFailure = getSimulatedOnRampFailure()
-  const simulatedFundingSource = getSimulatedFundingSource()
-
-  // Active deposit session for the current funding source. The provider
-  // may emit a real on-chain hash (driving polling) or a terminal
-  // pre-hash failure (rendered below). Null for `wallet` / `transfer` /
-  // no registered provider.
+  // Active deposit session for the current funding source. The provider may
+  // surface a terminal pre-hash failure (rendered below) or a cancellation
+  // (redirected to amount entry). On-ramp deposits are tracked purely by
+  // polling the status endpoint with the deposit address — the provider's own
+  // hash, if any, is the funding tx and not the LI.FI-tracked transfer.
   const deposit = useActiveOnRampDeposit()
   const providerName = deposit?.providerName ?? ''
-  const storeFundingSource = useCheckoutFlowStore((s) => s.fundingSource)
-  const fundingSource = simulatedFundingSource ?? storeFundingSource
+  const fundingSource = useCheckoutFlowStore((s) => s.fundingSource)
   const isTransferFlow = fundingSource === 'transfer'
 
-  // Pull the on-chain hash emitted by the provider into the URL so polling
-  // kicks in. `acknowledge` clears it on the provider side so re-renders
-  // don't loop. When a simulation is active, the hash arrival also marks the
-  // end of "watching" — flip the simulation to `pending` so the page walks
-  // through the executing screen instead of jumping straight to done.
-  const depositTxHash = deposit?.depositTxHash ?? null
-  const acknowledgeDepositTxHash = deposit?.acknowledgeDepositTxHash
-  useEffect(() => {
-    if (!depositTxHash) {
-      return
-    }
-    const nextSimulate = simulate === 'watching' ? 'pending' : simulate
-    navigate({
-      to: `/${navigationRoutes.transactionExecution}/${checkoutNavigationRoutes.transactionStatus}`,
-      search: {
-        transactionHash: depositTxHash,
-        ...(nextSimulate ? { simulateTransactionStatus: nextSimulate } : {}),
-      },
-    })
-    acknowledgeDepositTxHash?.()
-  }, [depositTxHash, acknowledgeDepositTxHash, navigate, simulate])
-
-  // Dev-only: on-ramp providers (e.g. Transak) never deliver an on-chain
-  // hash through the SDK. Once the provider's modal opens then closes
-  // cleanly (no failure → user completed the card charge) we treat that
-  // as the cue to advance the watching → pending simulation after a hold.
-  // Tracking the open→close transition guards against a race on first
-  // mount where the store hasn't yet committed isOpen=true.
-  const depositModalOpen = deposit?.isOpen ?? false
-  const depositFailure = deposit?.failure ?? null
-  const [sawModalOpen, setSawModalOpen] = useState(false)
-  useEffect(() => {
-    if (depositModalOpen && !sawModalOpen) {
-      setSawModalOpen(true)
-    }
-  }, [depositModalOpen, sawModalOpen])
-  const cardChargeAccepted =
-    sawModalOpen && !depositModalOpen && !depositFailure
-  useEffect(() => {
-    if (simulate !== 'watching') {
-      return
-    }
-    if (!cardChargeAccepted) {
-      return
-    }
-    const delayMs = getWatchingSimulationDuration()
-    if (delayMs === null) {
-      return
-    }
-    const id = setTimeout(() => {
-      navigate({
-        to: `/${navigationRoutes.transactionExecution}/${checkoutNavigationRoutes.transactionStatus}`,
-        search: (prev: StatusSearch) => ({
-          ...prev,
-          simulateTransactionStatus: 'pending',
-        }),
-      })
-    }, delayMs)
-    return () => clearTimeout(id)
-  }, [simulate, cardChargeAccepted, navigate])
-
-  // Dev-only: after `simulate=pending`, auto-advance to `done`.
-  useEffect(() => {
-    if (simulate !== 'pending') {
-      return
-    }
-    const delayMs = getPendingSimulationDuration()
-    if (delayMs === null) {
-      return
-    }
-    const id = setTimeout(() => {
-      navigate({
-        to: `/${navigationRoutes.transactionExecution}/${checkoutNavigationRoutes.transactionStatus}`,
-        search: (prev: StatusSearch) => ({
-          ...prev,
-          simulateTransactionStatus: 'done',
-        }),
-      })
-    }, delayMs)
-    return () => clearTimeout(id)
-  }, [simulate, navigate])
-
-  const [formFromChainId, formFromTokenAddress] = useFieldValues(
-    'fromChain',
-    'fromToken'
-  )
-  const [formToChainId, formToTokenAddress] = useFieldValues(
-    'toChain',
-    'toToken'
-  )
-  const [formFromAmount] = useFieldValues('fromAmount')
-  const { token: formFromToken } = useToken(
-    formFromChainId,
-    formFromTokenAddress
-  )
-  const { token: formToToken } = useToken(formToChainId, formToTokenAddress)
-
-  const simulateTokenOverrides = simulate
-    ? {
-        fromToken: formFromToken ?? null,
-        toToken: formToToken ?? null,
-        fromAmount: typeof formFromAmount === 'string' ? formFromAmount : null,
-      }
-    : undefined
+  const { frozenRoute, recipientAddress } = useCheckoutStatusSources()
 
   const { status, phase, isLoading, notFound } = useCheckoutTransactionStatus({
     transactionHash,
     depositAddress,
     fromChain,
-    simulate,
-    simulateSubstatus: simulatedSubstatus,
-    simulateTokenOverrides,
   })
 
   const resumeKey = useResumeKey()
@@ -207,6 +85,18 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
       clearForKey(resumeKey)
     }
   }, [phase, resumeKey, clearForKey])
+
+  // A cancelled on-ramp deposit (user closed the provider modal before
+  // depositing) is not an error — return to amount entry instead of showing
+  // the error screen. Only genuine failures fall through to the error branch.
+  const depositCancelled = deposit?.failure?.kind === 'cancelled'
+  useEffect(() => {
+    if (!depositCancelled) {
+      return
+    }
+    clearForKey(resumeKey)
+    navigate({ to: checkoutNavigationRoutes.enterAmount, replace: true })
+  }, [depositCancelled, clearForKey, resumeKey, navigate])
 
   const isResumed = search.resumed === '1'
   const showToast = useCheckoutToastStore((s) => s.show)
@@ -223,8 +113,7 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
   // Track when executing first becomes visible so we can hold it briefly
   // before swapping to the success view.
   const [minHoldElapsed, setMinHoldElapsed] = useState(false)
-  const inExecutingState =
-    simulate !== 'watching' && (transactionHash || status) && phase !== 'failed'
+  const inExecutingState = (transactionHash || status) && phase !== 'failed'
   useEffect(() => {
     if (!inExecutingState) {
       setMinHoldElapsed(false)
@@ -238,21 +127,36 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
   const detailsTxHash = transactionHash ?? getReceivingTxHash(status) ?? null
   const handleContactSupport = useContactSupport(detailsTxHash ?? undefined)
 
+  // Refund subject ("100 USDC on Arbitrum") describes the deposited source that
+  // is being returned. Prefer the live status, fall back to the frozen quote.
+  const refundSending = status?.sending as ExtendedTransactionInfo | undefined
+  const refundToken = refundSending?.token ?? frozenRoute?.fromToken
+  const refundAmountRaw = refundSending?.amount ?? frozenRoute?.fromAmount
   const refundChainId =
-    typeof status?.sending?.chainId === 'number'
-      ? status.sending.chainId
-      : undefined
+    (typeof refundSending?.chainId === 'number'
+      ? refundSending.chainId
+      : undefined) ?? frozenRoute?.fromChainId
   const { chain: refundChain } = useChain(refundChainId)
+  const refundAmount =
+    refundToken && refundAmountRaw
+      ? formatTokenAmount(BigInt(refundAmountRaw), refundToken.decimals)
+      : ''
+  const refundParams = {
+    amount: refundAmount,
+    symbol: refundToken?.symbol ?? '',
+    chain: refundChain?.name ?? '',
+  }
 
-  // Header reads "Deposit" for on-ramp failure and refund-in-progress
-  // screens (per Figma); standard transaction-status title otherwise.
-  const isRefundInProgress =
-    simulatedSubstatus === 'REFUND_IN_PROGRESS' ||
-    status?.substatus === 'REFUND_IN_PROGRESS'
+  const isRefundInProgress = status?.substatus === 'REFUND_IN_PROGRESS'
+  const isRefunded = status?.substatus === 'REFUNDED'
+  // Refund screens read "Refund"; on-ramp failure reads "Deposit"; standard
+  // transaction-status title otherwise.
   useHeader(
-    deposit?.failure || isRefundInProgress
-      ? t('checkout.deposit')
-      : t('checkout.transactionStatus.detailsTitle')
+    isRefundInProgress || isRefunded
+      ? t('checkout.refund.title')
+      : deposit?.failure
+        ? t('checkout.deposit')
+        : t('checkout.transactionStatus.detailsTitle')
   )
 
   const goToEnterAmount = (): void => {
@@ -278,8 +182,9 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
   }
 
   // Pre-hash provider failure preempts any other status state because
-  // polling can't have started without a hash.
-  if (deposit?.failure) {
+  // polling can't have started without a hash. Cancellations are handled by
+  // the redirect effect above, so they skip the error screen here.
+  if (deposit?.failure && !depositCancelled) {
     const variant = resolveStatusVariant({
       fundingSource,
       onRampFailureKind: deposit.failure.kind,
@@ -290,25 +195,6 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
           variant={variant}
           description={deposit.failure.message}
           primaryAction={{ tryAgain: deposit.failure.retry }}
-          secondaryAction={{ contactSupport: handleContactSupport }}
-        />
-      </PageContainer>
-    )
-  }
-
-  // Dev-only: URL-driven on-ramp failure simulation. Mirrors the real
-  // `deposit.failure` branch above so every OnRampFailureKind variant is
-  // reachable without running the actual provider flow.
-  if (simulatedOnRampFailure) {
-    const variant = resolveStatusVariant({
-      fundingSource,
-      onRampFailureKind: simulatedOnRampFailure,
-    })
-    return (
-      <PageContainer bottomGutters>
-        <CheckoutStatusScreen
-          variant={variant}
-          primaryAction={{ tryAgain: goToEnterAmount }}
           secondaryAction={{ contactSupport: handleContactSupport }}
         />
       </PageContainer>
@@ -328,7 +214,7 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
     )
   }
 
-  if (simulate === 'watching' || (!simulate && !transactionHash && !status)) {
+  if (!transactionHash && !status) {
     return (
       <PageContainer bottomGutters>
         <StatusWatching />
@@ -383,49 +269,65 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
     )
   }
 
-  // Refund / intent-retrying substatuses render the compact variant screen
-  // so the dedicated copy + tone (amber spinner for refund-in-progress,
-  // green check for refunded) actually surfaces — StatusCompleted /
-  // StatusExecuting hardcode their own copy and would otherwise mask it.
+  // Refund substatuses render the compact status screen with their own copy
+  // and tone — StatusCompleted / StatusExecuting hardcode their copy and would
+  // otherwise mask it. Intent-retrying substatuses are excluded from the set
+  // above and stay on the executing screen.
   if (status?.substatus && COMPACT_VARIANT_SUBSTATUSES.has(status.substatus)) {
     const variant = resolveStatusVariant({
       status,
       substatus: status.substatus,
       fundingSource,
     })
-    const isRefundProgress = status.substatus === 'REFUND_IN_PROGRESS'
-    const refundAddress =
-      (status as { fromAddress?: string }).fromAddress ?? null
-    const refundShort = refundAddress
-      ? (shortenAddress(refundAddress) ?? refundAddress)
-      : null
-    const sentToLabel =
-      fundingSource === 'wallet'
-        ? t('checkout.status.walletPendingRefund.sentToWallet')
-        : t('checkout.status.pendingRefund.sentTo')
+    const description = isRefundInProgress
+      ? t('checkout.refund.inProgressDescription', refundParams)
+      : isRefunded
+        ? t('checkout.refund.completeDescription', refundParams)
+        : undefined
+    // The refund transaction is the status payload's receiving tx; prefer it
+    // over the URL hash (which is the original deposit tx for wallet flows).
+    const refundTxHash = getReceivingTxHash(status) ?? detailsTxHash
+    const goToRefundTx = (): void => {
+      if (!refundTxHash) {
+        return
+      }
+      navigate({
+        to: `/${navigationRoutes.transactionExecution}/${navigationRoutes.transactionDetails}`,
+        search: { transactionHash: refundTxHash },
+      })
+    }
+    // Figma places "View transaction" as an inline link under the refund-
+    // complete copy (not a button), and only when there's a hash to link to.
     const descriptionAddon =
-      isRefundProgress && refundShort ? (
-        <Stack spacing={0.5} sx={{ alignItems: 'center', mt: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            {sentToLabel}
-          </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-            {refundChain?.name
-              ? `${refundShort} on ${refundChain.name}`
-              : refundShort}
-          </Typography>
-        </Stack>
+      isRefunded && refundTxHash ? (
+        <Link
+          component="button"
+          type="button"
+          onClick={goToRefundTx}
+          underline="hover"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            fontSize: '0.875rem',
+          }}
+        >
+          {t('checkout.refund.viewTransaction')}
+          <OpenInNewRoundedIcon sx={{ fontSize: 16 }} />
+        </Link>
       ) : undefined
     return (
       <PageContainer bottomGutters>
         <CheckoutStatusScreen
           variant={variant}
+          description={description}
           descriptionAddon={descriptionAddon}
           primaryAction={{
             done: goHome,
             viewDetails: goToDetails,
             tryAgain: goToEnterAmount,
             contactSupport: handleContactSupport,
+            retryDeposit: goToEnterAmount,
           }}
           secondaryAction={{
             done: goHome,
@@ -444,6 +346,8 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
           status={status as FullStatusData}
           onSeeDetails={goToDetails}
           onDone={goHome}
+          frozenRoute={frozenRoute}
+          recipientAddress={recipientAddress}
         />
       </PageContainer>
     )
@@ -452,14 +356,22 @@ export const CheckoutTransactionStatusPage: React.FC = (): JSX.Element => {
   if (isLoading && !status) {
     return (
       <PageContainer bottomGutters>
-        <StatusExecuting status={undefined} />
+        <StatusExecuting
+          status={undefined}
+          frozenRoute={frozenRoute}
+          recipientAddress={recipientAddress}
+        />
       </PageContainer>
     )
   }
 
   return (
     <PageContainer bottomGutters>
-      <StatusExecuting status={status} />
+      <StatusExecuting
+        status={status}
+        frozenRoute={frozenRoute}
+        recipientAddress={recipientAddress}
+      />
     </PageContainer>
   )
 }

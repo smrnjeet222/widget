@@ -66,6 +66,30 @@ describe('usePendingCheckoutWriter — resumePending gate', () => {
     )
   })
 
+  it('writeCashSuccess persists the frozen quote for resume', () => {
+    const { result } = renderHook(() => usePendingCheckoutWriter(), {
+      wrapper: wrap(true),
+    })
+    act(() => {
+      result.current.writeCashSuccess({
+        depositAddress: '0xdep2',
+        fromChain: 8453,
+        provider: 'transak',
+        fundingSource: 'cash',
+        frozenQuote: {
+          id: 'route-2',
+          route: { id: 'route-2' } as any,
+          expiresAt: Date.now() + 60_000,
+        },
+      })
+    })
+    const key = buildResumeKey('int', '0xWALLET')
+    const record = usePendingCheckoutStore.getState().records[key]
+    expect(record.fundingSource).toBe('cash')
+    expect(record.status).toBe('confirmed-no-hash')
+    expect(record.frozenQuote?.id).toBe('route-2')
+  })
+
   it('no-ops every write helper when resumePending is false', () => {
     const { result } = renderHook(() => usePendingCheckoutWriter(), {
       wrapper: wrap(false),

@@ -1,4 +1,4 @@
-import type { ExtendedTransactionInfo, FullStatusData } from '@lifi/sdk'
+import type { ExtendedTransactionInfo, FullStatusData, Route } from '@lifi/sdk'
 import {
   ActionRow,
   IconCircle,
@@ -20,9 +20,17 @@ interface StepRow {
   href?: string
 }
 
+interface Segment {
+  fromChainId?: number
+  toChainId?: number
+  toSymbol?: string
+}
+
 interface StatusStepListProps {
-  status: FullStatusData
+  status?: FullStatusData
   phase: 'pending' | 'done'
+  frozenRoute?: Route
+  recipientAddress?: string | null
 }
 
 const ExternalLink = styled(Link)(({ theme }) => ({
@@ -42,13 +50,41 @@ const ExternalLink = styled(Link)(({ theme }) => ({
 export function StatusStepList({
   status,
   phase,
+  frozenRoute,
+  recipientAddress,
 }: StatusStepListProps): JSX.Element {
   const { t } = useTranslation()
   const { getChainById } = useAvailableChains()
   const { getTransactionLink } = useExplorer()
 
-  const sending = status.sending as ExtendedTransactionInfo
-  const receiving = status.receiving as ExtendedTransactionInfo
+  const sending = status?.sending as ExtendedTransactionInfo | undefined
+  const receiving = status?.receiving as ExtendedTransactionInfo | undefined
+
+  // Prefer the locally-known quote for the step plan and token symbols — the
+  // deposit-address poll is too sparse to populate them. Fall back to the
+  // status payload (wallet flow, or once full status arrives).
+  const fromSymbol =
+    frozenRoute?.steps[0]?.action.fromToken.symbol ?? sending?.token?.symbol
+
+  const segments = useMemo<Segment[]>(() => {
+    if (frozenRoute) {
+      return frozenRoute.steps
+        .flatMap((step) => step.includedSteps ?? [])
+        .filter((included) => included.tool !== 'feeCollection')
+        .map((included) => ({
+          fromChainId: included.action.fromChainId,
+          toChainId: included.action.toChainId,
+          toSymbol: included.action.toToken.symbol,
+        }))
+    }
+    return (sending?.includedSteps ?? [])
+      .filter((included) => included.tool !== 'feeCollection')
+      .map((included) => ({
+        fromChainId: included.fromToken?.chainId,
+        toChainId: included.toToken?.chainId,
+        toSymbol: included.toToken?.symbol,
+      }))
+  }, [frozenRoute, sending])
 
   const rows = useMemo<StepRow[]>(() => {
     const out: StepRow[] = []
@@ -60,41 +96,28 @@ export function StatusStepList({
       : undefined
     const sourceConfirmed = Boolean(sending?.txHash)
 
-    out.push({
-      key: 'transferInitiated',
-      label: t('checkout.transactionStatus.steps.transferInitiated'),
-      state: phase === 'done' || sourceConfirmed ? 'done' : 'loading',
-      href: sendingTxLink,
-    })
-
-    if (sending?.token?.symbol) {
+    if (fromSymbol) {
       out.push({
         key: 'tokenReceived',
         label: t('checkout.transactionStatus.steps.tokenReceived', {
-          symbol: sending.token.symbol,
+          symbol: fromSymbol,
         }),
         state: phase === 'done' || sourceConfirmed ? 'done' : 'loading',
         href: sendingTxLink,
       })
     }
 
-    const includedSteps = sending?.includedSteps ?? []
-    includedSteps.forEach((step, i) => {
-      if (step.tool === 'feeCollection') {
-        return
-      }
-      const fromChainId = step.fromToken?.chainId
-      const toChainId = step.toToken?.chainId
+    segments.forEach((segment, i) => {
       const isCrossChain =
-        typeof fromChainId === 'number' &&
-        typeof toChainId === 'number' &&
-        fromChainId !== toChainId
+        typeof segment.fromChainId === 'number' &&
+        typeof segment.toChainId === 'number' &&
+        segment.fromChainId !== segment.toChainId
       const label = isCrossChain
         ? t('checkout.transactionStatus.steps.bridgedTo', {
-            chain: getChainById(toChainId)?.name ?? '',
+            chain: getChainById(segment.toChainId!)?.name ?? '',
           }).trim()
         : t('checkout.transactionStatus.steps.swappedTo', {
-            symbol: step.toToken?.symbol ?? '',
+            symbol: segment.toSymbol ?? '',
           })
       out.push({
         key: `step-${i}`,
@@ -104,10 +127,19 @@ export function StatusStepList({
     })
 
     return out
-  }, [getChainById, getTransactionLink, phase, sending, t])
+  }, [
+    fromSymbol,
+    getChainById,
+    getTransactionLink,
+    phase,
+    segments,
+    sending,
+    t,
+  ])
 
-  const toAddress = status.toAddress
-  const toChainId = receiving?.chainId ?? sending?.chainId
+  const toAddress = recipientAddress ?? status?.toAddress
+  const toChainId =
+    frozenRoute?.toChainId ?? receiving?.chainId ?? sending?.chainId
 
   return (
     <Stack spacing={1.25}>
@@ -129,7 +161,7 @@ export function StatusStepList({
           }
         />
       ))}
-      {toAddress && toChainId ? (
+      {phase === 'done' && toAddress && toChainId ? (
         <SentToWalletRow toAddress={toAddress} toChainId={toChainId} />
       ) : null}
     </Stack>

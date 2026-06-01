@@ -48,6 +48,7 @@
     "reset": "Reset",
     "resetSettings": "Reset settings",
     "resumeTransaction": "Resume transaction",
+    "retryDeposit": "Retry deposit",
     "seeDetails": "See details",
     "topUp": "Top up",
     "viewRefund": "View refund",
@@ -476,6 +477,7 @@
       "executing": "Processing transaction",
       "success": "Transaction successful",
       "seeDetails": "See details",
+      "keepWindowOpen": "Please keep this window open to help ensure your transaction is tracked.",
       "steps": {
         "transferInitiated": "Transfer initiated",
         "tokenReceived": "{{symbol}} received",
@@ -534,7 +536,7 @@
         "description": "Your transaction completed, but some of the received tokens are not the requested destination tokens. Open the details to see what you received."
       },
       "successRefund": {
-        "title": "Funds refunded",
+        "title": "Refund complete",
         "description": "Your transaction could not be completed and your funds have been refunded."
       },
       "pendingDefault": {
@@ -612,9 +614,15 @@
         "sentToWallet": "Sent to wallet:"
       },
       "walletSuccessRefund": {
-        "title": "Funds refunded",
+        "title": "Refund complete",
         "description": "Your transaction could not be completed and your funds have been refunded to your wallet."
       }
+    },
+    "refund": {
+      "title": "Refund",
+      "inProgressDescription": "Your {{amount}} {{symbol}} on {{chain}} is being returned to your wallet. This usually takes a few minutes.",
+      "completeDescription": "Your {{amount}} {{symbol}} on {{chain}} was returned to your wallet.",
+      "viewTransaction": "View transaction"
     }
   }
 }

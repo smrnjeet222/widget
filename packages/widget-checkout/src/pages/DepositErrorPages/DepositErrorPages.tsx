@@ -43,16 +43,8 @@ function useDepositErrorActions(): {
     },
     closeModal: () => modalContext?.closeModal(),
     requestRefund: () => {
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href)
-        url.searchParams.set('simulateSubstatus', 'REFUND_IN_PROGRESS')
-        url.searchParams.set('simulatePendingDuration', '99999')
-        window.history.replaceState({}, '', url.toString())
-      }
-      navigate({
-        to: `/${checkoutNavigationRoutes.transactionExecution}/${checkoutNavigationRoutes.transactionStatus}`,
-        search: { simulateTransactionStatus: 'pending' },
-      })
+      clear()
+      navigate({ to: checkoutNavigationRoutes.home })
     },
   }
 }

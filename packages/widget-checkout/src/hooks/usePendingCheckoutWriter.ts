@@ -27,6 +27,7 @@ interface CashSuccessWriteArgs {
   fromChain: number
   provider: PendingProvider
   fundingSource: 'cash' | 'exchange'
+  frozenQuote?: PersistedFrozenQuote
 }
 
 export interface PendingCheckoutWriter {
@@ -104,6 +105,7 @@ export function usePendingCheckoutWriter(): PendingCheckoutWriter {
       fromChain,
       provider,
       fundingSource,
+      frozenQuote,
     }: CashSuccessWriteArgs) => {
       if (!enabled) {
         return
@@ -117,6 +119,7 @@ export function usePendingCheckoutWriter(): PendingCheckoutWriter {
           depositAddress,
           fromChain,
           provider,
+          frozenQuote,
           status: 'confirmed-no-hash',
         })
       )

@@ -17,35 +17,33 @@ import { Box, Button } from '@mui/material'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { type JSX, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useCheckoutStatusSources } from '../../hooks/useCheckoutStatusSources.js'
 import { useCheckoutTransactionStatus } from '../../hooks/useCheckoutTransactionStatus.js'
-import { isTransactionStatusSimulationKind } from '../../utils/transactionStatusSimulation.js'
 import { CheckoutTransactionDetailsSkeleton } from './CheckoutTransactionDetailsSkeleton.js'
 import { CheckoutTransferIdCard } from './CheckoutTransferIdCard.js'
 
 interface DetailsSearch {
   transactionHash?: string
-  simulateTransactionStatus?: string
 }
 
 export const CheckoutTransactionDetailsPage: React.FC = (): JSX.Element => {
   const { t, i18n } = useTranslation()
   const { search } = useLocation() as { search: DetailsSearch }
   const transactionHash = search.transactionHash ?? null
-  const simulate = isTransactionStatusSimulationKind(
-    search.simulateTransactionStatus
-  )
-    ? search.simulateTransactionStatus
-    : null
-
-  useHeader(t('checkout.transactionStatus.detailsTitle'))
 
   const navigate = useNavigate()
   const { tools } = useTools()
   const { status } = useCheckoutTransactionStatus({
     transactionHash,
-    simulate,
   })
+
+  useHeader(
+    status?.substatus === 'REFUNDED'
+      ? t('checkout.refund.title')
+      : t('checkout.transactionStatus.detailsTitle')
+  )
   const { getTransactionLink } = useExplorer()
+  const { recipientAddress } = useCheckoutStatusSources()
 
   const route = useMemo(() => {
     if (!status || !tools) {
@@ -94,7 +92,10 @@ export const CheckoutTransactionDetailsPage: React.FC = (): JSX.Element => {
           <RouteTokens route={route} />
         </Box>
         <Box sx={{ mt: 2 }}>
-          <StepActionsList route={route} toAddress={route.toAddress} />
+          <StepActionsList
+            route={route}
+            toAddress={recipientAddress ?? route.toAddress}
+          />
         </Box>
       </Card>
       {supportId ? (

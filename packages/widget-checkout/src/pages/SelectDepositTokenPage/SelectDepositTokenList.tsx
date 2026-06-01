@@ -43,9 +43,11 @@ export const SelectDepositTokenList: FC<SelectDepositTokenListProps> = memo(
       FormKeyHelper.getTokenKey(formType)
     )
 
-    const isAllNetworks = useChainOrderStore(
-      (state) => state[`${formType}IsAllNetworks`]
-    )
+    // The curated CEX list is pinned to a single chain (mainnet) — never span
+    // networks, even if an "all networks" toggle was left on by a prior flow.
+    const isAllNetworks =
+      useChainOrderStore((state) => state[`${formType}IsAllNetworks`]) &&
+      !allowedSymbols
 
     const [tokenSearchFilter]: string[] = useDebouncedWatch(
       320,

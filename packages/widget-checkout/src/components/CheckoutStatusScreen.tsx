@@ -52,6 +52,8 @@ function useActionLabel(
       return t('button.contactSupport')
     case 'viewRefund':
       return t('button.viewRefund')
+    case 'retryDeposit':
+      return t('button.retryDeposit')
     default:
       return ''
   }
@@ -179,20 +181,24 @@ export function CheckoutStatusScreen({
         </Typography>
         {descriptionAddon}
       </Stack>
-      <Stack spacing={1} sx={{ width: '100%', maxWidth: 320 }}>
-        <ActionButton
-          action={variant.primaryAction}
-          handlers={primaryAction}
-          variant="contained"
-        />
-        {variant.secondaryAction && secondaryAction ? (
-          <ActionButton
-            action={variant.secondaryAction}
-            handlers={secondaryAction}
-            variant="text"
-          />
-        ) : null}
-      </Stack>
+      {variant.primaryAction || variant.secondaryAction ? (
+        <Stack spacing={1} sx={{ width: '100%', maxWidth: 320 }}>
+          {variant.primaryAction ? (
+            <ActionButton
+              action={variant.primaryAction}
+              handlers={primaryAction}
+              variant="contained"
+            />
+          ) : null}
+          {variant.secondaryAction && secondaryAction ? (
+            <ActionButton
+              action={variant.secondaryAction}
+              handlers={secondaryAction}
+              variant="text"
+            />
+          ) : null}
+        </Stack>
+      ) : null}
     </Stack>
   )
 }

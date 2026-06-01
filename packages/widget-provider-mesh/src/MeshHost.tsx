@@ -244,7 +244,23 @@ export const MeshHost: FC<MeshHostProps> = ({ widgetConfig }) => {
                 message: exitError,
                 provider: 'mesh',
               })
+              return
             }
+
+            // No success, no tracked error, no exit error: the user dismissed
+            // the modal before depositing. Surface a `cancelled` failure (not
+            // an error) so the checkout returns to amount entry rather than
+            // sitting on the watching screen. No `onError` — cancelling isn't
+            // a failure to report.
+            setFailure({
+              kind: 'cancelled',
+              retry: () => {
+                setFailure(null)
+                if (lastOpenArgsRef.current) {
+                  void openDepositFlow(lastOpenArgsRef.current)
+                }
+              },
+            })
           },
         })
 

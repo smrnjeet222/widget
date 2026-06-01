@@ -1,12 +1,14 @@
-import type { FullStatusData, StatusResponse } from '@lifi/sdk'
-import { Card } from '@lifi/widget/shared'
-import { Box, CircularProgress, Stack, Typography } from '@mui/material'
+import type { FullStatusData, Route, StatusResponse } from '@lifi/sdk'
+import { Card, RouteTokens } from '@lifi/widget/shared'
+import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material'
 import { type JSX, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StatusStepList } from './StatusStepList.js'
 
 interface StatusExecutingProps {
   status: StatusResponse | undefined
+  frozenRoute?: Route
+  recipientAddress?: string | null
 }
 
 const RING_SIZE = 96
@@ -19,7 +21,11 @@ function formatElapsed(seconds: number): string {
   return `${m}:${s}`
 }
 
-export function StatusExecuting({ status }: StatusExecutingProps): JSX.Element {
+export function StatusExecuting({
+  status,
+  frozenRoute,
+  recipientAddress,
+}: StatusExecutingProps): JSX.Element {
   const { t } = useTranslation()
   const [elapsed, setElapsed] = useState(0)
 
@@ -87,12 +93,27 @@ export function StatusExecuting({ status }: StatusExecutingProps): JSX.Element {
             {t('checkout.transactionStatus.executing')}
           </Typography>
         </Stack>
-        {fullStatus ? (
+        {fullStatus || frozenRoute ? (
           <Box sx={{ pt: 2 }}>
-            <StatusStepList status={fullStatus} phase="pending" />
+            <StatusStepList
+              status={fullStatus}
+              phase="pending"
+              frozenRoute={frozenRoute}
+              recipientAddress={recipientAddress}
+            />
           </Box>
         ) : null}
       </Card>
+
+      {frozenRoute ? (
+        <Card variant="elevation" indented sx={{ filter: 'none' }}>
+          <RouteTokens route={frozenRoute} />
+        </Card>
+      ) : null}
+
+      <Alert severity="info" sx={{ alignItems: 'center' }}>
+        {t('checkout.transactionStatus.keepWindowOpen')}
+      </Alert>
     </Stack>
   )
 }

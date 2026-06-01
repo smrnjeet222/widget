@@ -21,7 +21,6 @@ import {
   checkoutAbsolutePaths,
   checkoutNavigationRoutes,
 } from '../utils/navigationRoutes.js'
-import { clearSimWindowParams } from '../utils/transactionStatusSimulation.js'
 
 const ctaLabelKey = {
   wallet: 'button.deposit',
@@ -77,9 +76,6 @@ export const CheckoutFlowCtaButton: React.FC = (): JSX.Element => {
     if (!route || !depositAddress || !onRampSession) {
       return
     }
-    // Strip dev simulation params left over from CheckoutSimulationPanel
-    // presets so a normal Deposit doesn't inherit, e.g. REFUND_IN_PROGRESS.
-    clearSimWindowParams()
     freeze(route)
     setFrozenRouteId(route.id)
     const cryptoAmount = formatTokenAmount(
@@ -108,9 +104,6 @@ export const CheckoutFlowCtaButton: React.FC = (): JSX.Element => {
       search: {
         depositAddress,
         fromChain: route.fromChainId,
-        ...(process.env.NODE_ENV !== 'production'
-          ? { simulateTransactionStatus: 'watching' }
-          : {}),
       },
     })
   }, [

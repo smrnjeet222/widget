@@ -2,7 +2,7 @@ import type { StatusResponse } from '@lifi/sdk'
 import { useSDKClient } from '@lifi/widget/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   getDepositAddressStatus,
   getReceivingTxHash,
@@ -15,7 +15,6 @@ import {
   computeBackoffInterval,
   depositAddressQueryKey,
 } from '../../utils/statusPolling.js'
-import { getTransferReceiptSimulation } from '../../utils/transactionStatusSimulation.js'
 import type { DepositErrorKind } from '../DepositErrorPages/DepositErrorPages.js'
 
 /**
@@ -54,24 +53,7 @@ export function useTransferStatusPoll({
   const navigate = useNavigate()
   const sdkClient = useSDKClient()
 
-  // Stable reference so the receipt-timer effect doesn't reset each render.
-  const sim = useMemo(() => getTransferReceiptSimulation(), [])
-
-  useEffect(() => {
-    if (!enabled || !sim) {
-      return
-    }
-    const id = setTimeout(() => {
-      navigate({
-        to: statusPath,
-        search: { simulateTransactionStatus: sim.kind },
-      })
-    }, sim.delayMs)
-    return () => clearTimeout(id)
-  }, [enabled, sim, navigate])
-
-  const pollEnabled =
-    enabled && !sim && !!depositAddress && !!fromChain && !!routeId
+  const pollEnabled = enabled && !!depositAddress && !!fromChain && !!routeId
 
   const startMsRef = useRef(Date.now())
 

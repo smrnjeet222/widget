@@ -37,6 +37,7 @@ export function PendingCheckoutPersistenceBridge({
           fromChain,
           provider,
           fundingSource,
+          frozenQuote: frozen ?? undefined,
         })
       }
       outer.onSuccess?.(result)

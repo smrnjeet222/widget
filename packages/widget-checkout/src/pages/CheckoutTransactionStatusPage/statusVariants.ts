@@ -10,6 +10,7 @@ export type StatusVariantPrimaryAction =
   | 'done'
   | 'contactSupport'
   | 'viewRefund'
+  | 'retryDeposit'
 export type StatusVariantSecondaryAction =
   | 'contactSupport'
   | 'done'
@@ -20,7 +21,8 @@ export interface StatusVariant {
   icon: StatusVariantIcon
   titleKey: string
   descriptionKey: string
-  primaryAction: StatusVariantPrimaryAction
+  /** Omitted when the screen has no call to action (e.g. refund in progress). */
+  primaryAction?: StatusVariantPrimaryAction
   secondaryAction?: StatusVariantSecondaryAction
 }
 
@@ -88,8 +90,7 @@ export function resolveStatusVariant({
         descriptionKey: isWallet
           ? 'checkout.status.walletSuccessRefund.description'
           : 'checkout.status.successRefund.description',
-        primaryAction: 'done',
-        secondaryAction: 'viewDetails',
+        primaryAction: 'retryDeposit',
       }
     }
     if (substatus === 'PARTIAL') {
@@ -115,7 +116,7 @@ export function resolveStatusVariant({
   if (rawStatus === 'PENDING') {
     if (substatus === 'REFUND_IN_PROGRESS') {
       return {
-        tone: 'warning',
+        tone: 'pending',
         icon: 'spinner',
         titleKey: isWallet
           ? 'checkout.status.walletPendingRefund.title'
@@ -123,7 +124,6 @@ export function resolveStatusVariant({
         descriptionKey: isWallet
           ? 'checkout.status.walletPendingRefund.description'
           : 'checkout.status.pendingRefund.description',
-        primaryAction: 'viewDetails',
       }
     }
     if (

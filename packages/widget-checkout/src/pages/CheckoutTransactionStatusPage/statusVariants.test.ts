@@ -156,15 +156,15 @@ describe('resolveStatusVariant — DONE branch', () => {
     expect(variant.secondaryAction).toBe('done')
   })
 
-  it('DONE + REFUNDED → success-refund (wallet copy)', () => {
+  it('DONE + REFUNDED → success-refund (wallet copy), retry-deposit CTA only', () => {
     const variant = resolveStatusVariant({
       status: statusOf('DONE'),
       substatus: 'REFUNDED',
       fundingSource: 'wallet',
     })
     expect(variant.titleKey).toBe('checkout.status.walletSuccessRefund.title')
-    expect(variant.primaryAction).toBe('done')
-    expect(variant.secondaryAction).toBe('viewDetails')
+    expect(variant.primaryAction).toBe('retryDeposit')
+    expect(variant.secondaryAction).toBeUndefined()
     expect(variant.icon).toBe('check')
   })
 
@@ -175,21 +175,21 @@ describe('resolveStatusVariant — DONE branch', () => {
       fundingSource: 'exchange',
     })
     expect(variant.titleKey).toBe('checkout.status.successRefund.title')
-    expect(variant.primaryAction).toBe('done')
+    expect(variant.primaryAction).toBe('retryDeposit')
   })
 })
 
 describe('resolveStatusVariant — PENDING branch', () => {
-  it('PENDING + REFUND_IN_PROGRESS → pending-refund (wallet)', () => {
+  it('PENDING + REFUND_IN_PROGRESS → pending-refund (wallet), blue, no CTA', () => {
     const variant = resolveStatusVariant({
       status: statusOf('PENDING'),
       substatus: 'REFUND_IN_PROGRESS',
       fundingSource: 'wallet',
     })
     expect(variant.titleKey).toBe('checkout.status.walletPendingRefund.title')
-    expect(variant.tone).toBe('warning')
+    expect(variant.tone).toBe('pending')
     expect(variant.icon).toBe('spinner')
-    expect(variant.primaryAction).toBe('viewDetails')
+    expect(variant.primaryAction).toBeUndefined()
   })
 
   it('PENDING + REFUND_IN_PROGRESS → pending-refund (non-wallet)', () => {
