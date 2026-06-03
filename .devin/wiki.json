@@ -1,0 +1,300 @@
+{
+  "repo_notes": [
+    {
+      "content": ""
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview ",
+      "purpose": "High-level introduction to the LI.FI Widget monorepo: what it is, its key capabilities, the package dependency graph, and how to navigate the wiki. Links to child pages for architecture, integration, and development details.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Getting Started",
+      "purpose": "Installation, environment setup, development commands (pnpm dev, build, check), and a quick-start guide for embedding the widget. Covers the monorepo toolchain: pnpm workspaces, tsdown, Biome, Changesets.",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Monorepo Package Structure",
+      "purpose": "Describes every package in the monorepo (widget, wallet-management, widget-light, widget-embedded, widget-provider-*, widget-playground), their roles, and the dependency graph. Explains the build order and workspace linking.",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Core Widget Architecture",
+      "purpose": "Overview of how the main @lifi/widget package is structured internally: provider layering, state management, routing, and the component tree. Links to child pages for each major subsystem.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Application Bootstrap & Provider Layering",
+      "purpose": "Details the App.tsx → AppProvider → provider stack (QueryClient, WidgetProvider, ThemeProvider, WalletProvider, StoreProvider, I18nProvider). Covers the AppDrawer imperative API, iframe initialization sequence in widget-embedded, and the ElementId system for multi-instance support.",
+      "parent": "Core Widget Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "State Management (Zustand Stores)",
+      "purpose": "Explains all Zustand stores: FormStore (chain/token/amount inputs), SettingsStore (slippage, bridges, gas price), RouteExecutionStore (active/historical routes), ChainOrderStore, BookmarkStore, PinnedTokensStore, HeaderStore. Covers StoreProvider composition and localStorage namespacing.",
+      "parent": "Core Widget Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Navigation & Page Routing",
+      "purpose": "Covers TanStack Router integration, the navigationRoutes manifest, page components (MainPage, RoutesPage, TransactionPage, SelectTokenPage, SelectChainPage, SettingsPage, ActivitiesPage, SendToWalletPage), and how the widget manages internal SPA navigation without URL changes.",
+      "parent": "Core Widget Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Theming System",
+      "purpose": "Explains the MUI v7-based theming: createTheme(), WidgetTheme config, CSS variables (--lifi-* prefix), color schemes (light/dark/system), built-in themes (azureLight, watermelonLight, jumper, windows95), border radius tokens, and how integrators customize appearance.",
+      "parent": "Core Widget Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Widget Configuration API",
+      "purpose": "Overview of the WidgetConfig interface and how integrators control widget behavior. Links to child pages covering the full config schema, layout variants, operational modes, and the event system.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "WidgetConfig Reference",
+      "purpose": "Full reference for the WidgetConfig type: required fields (integrator), chain/token presets, disabledUI/hiddenUI/requiredUI/defaultUI toggles, SDK config overrides (apiUrl, rpcUrls, routeOptions), feeConfig, walletConfig, contractCalls, and the FormRef imperative API.",
+      "parent": "Widget Configuration API",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Layout Variants & Widget Modes",
+      "purpose": "Explains the three layout variants (compact, wide, drawer) and operational modes (default, split, refuel, custom/checkout/deposit). Covers the useWideVariant hook, DrawerAPI, chainSidebar, and how mode affects UI labels and navigation.",
+      "parent": "Widget Configuration API",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Widget Events",
+      "purpose": "Documents the WidgetEvent enum and useWidgetEvents hook: RouteSelected, AvailableRoutes, RouteExecutionStarted/Updated/Completed/Failed, SettingUpdated, PageEntered, ChainPinned, TokenSearch, WalletConnected/Disconnected. Explains the eventemitter3-based pub/sub pattern.",
+      "parent": "Widget Configuration API",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Route Discovery & Transaction Execution",
+      "purpose": "Overview of the full swap/bridge lifecycle from route fetching through execution. Links to child pages for route discovery, execution engine, and the transaction UI.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Route Discovery (useRoutes)",
+      "purpose": "Deep dive into useRoutes: query key construction, validation (toAddress ecosystem check), concurrent quoting (getRoutes + getRelayerQuote + getContractCallsQuote), route merging, cache synchronization, ProgressToNextUpdate (60s stale time), and the RoutesPage/RoutesExpanded UI.",
+      "parent": "Route Discovery & Transaction Execution",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Route Execution Engine (useRouteExecution)",
+      "purpose": "Covers the useRouteExecution hook: executeRoute, resumeRoute, restartRoute, deleteRoute, background execution on unmount, automatic resumption on mount, cache invalidation (token-balances, transaction-history), and RouteExecutionStatus state machine.",
+      "parent": "Route Discovery & Transaction Execution",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Transaction UI (TransactionPage & Step Components)",
+      "purpose": "Explains TransactionPage pre-flight checks (address activity, value loss threshold), StartTransactionButton, Step/StepList rendering, StepActions (bridge/swap/protocol labels), StatusBottomSheet terminal states (Done/Partial/Refunded/Failed), and TransactionDetailsPage history reconstruction.",
+      "parent": "Route Discovery & Transaction Execution",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Fee & Cost Calculation",
+      "purpose": "Documents getAccumulatedFeeCostsBreakdown, integrator fee detection via feeCollectionStep, gas cost aggregation, price impact calculation (getPriceImpact), FeeBreakdownTooltip, TransactionDetails component, and the TokenValueBottomSheet high-value-loss safety gate.",
+      "parent": "Route Discovery & Transaction Execution",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Token & Chain Selection",
+      "purpose": "Overview of the asset selection subsystem: token lists, chain lists, search, balances, and gas sufficiency. Links to child pages for each major component.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Token List & Search",
+      "purpose": "Covers TokenList, VirtualizedTokenList (react-virtual), TokenListItem, TokenDetailsSheetContent, useTokens (verified/unverified), useTokenSearch (address lookup + cache injection), useTokenBalances, token categories (pinned/featured/popular), allow/deny filtering, and the small-balance threshold.",
+      "parent": "Token & Chain Selection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Chain Selection & Ordering",
+      "purpose": "Explains ChainSelect, VirtualizedChainList, ChainOrderStore (user-reorderable chain list), ChainsExpanded sidebar (wide variant), useAvailableChains, useChains filtering by FormType and ChainType, and the SelectChainPage.",
+      "parent": "Token & Chain Selection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Gas Sufficiency & Refuel",
+      "purpose": "Documents useGasSufficiency (per-step gas validation pipeline, refuel detection via gasZip), useGasRefuel (50% threshold check), useGasRecommendation, GasRefuelMessage UI, and how the system handles insufficient gas warnings across multi-step cross-chain routes.",
+      "parent": "Token & Chain Selection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Wallet Management",
+      "purpose": "Overview of the multi-ecosystem wallet layer: @lifi/wallet-management, @lifi/widget-provider, and chain-specific providers. Links to child pages for each ecosystem.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "@lifi/wallet-management",
+      "purpose": "Covers WalletManagementProvider, WalletManagementProviders, WalletMenuProvider, useCombinedWallets, useAccount, useAccountDisconnect, WalletMenuContent UI, wallet priority sorting, connector icons, and the WalletManagementEvent system.",
+      "parent": "Wallet Management",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Chain-Specific Providers",
+      "purpose": "Documents @lifi/widget-provider (base contexts: EthereumContext, SolanaContext, BitcoinContext, SuiContext, TronContext), and each chain provider package: widget-provider-ethereum (wagmi/viem), widget-provider-solana (wallet-standard/zustand), widget-provider-bitcoin (bigmi), widget-provider-sui (dapp-kit-react), widget-provider-tron.",
+      "parent": "Wallet Management",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Header & Wallet UI",
+      "purpose": "Explains the Header component system: NavigationHeader (back button, split tabs, settings/activities buttons), WalletHeader (multi-account display, active account by fromChain), WalletMenu (copy address, explorer links, disconnect), height observation via ResizeObserver, and sticky header logic.",
+      "parent": "Wallet Management",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Iframe Integration (widget-light & widget-embedded)",
+      "purpose": "Overview of the iframe-based integration pattern. Links to child pages for the host-side API and the guest-side embedded widget.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Host Side: @lifi/widget-light",
+      "purpose": "Documents LiFiWidgetLight component, useWidgetLightHost hook, postMessage protocol (READY→INIT→CONFIG_UPDATE, RPC_REQUEST/RESPONSE, EVENT, WIDGET_EVENT), WidgetLightEventBus, useWidgetLightEvents, ecosystem handlers (ethereum/solana/bitcoin/sui/tron subpath imports), and WidgetLightConfig (serializable subset of WidgetConfig).",
+      "parent": "Iframe Integration (widget-light & widget-embedded)",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Guest Side: @lifi/widget-embedded",
+      "purpose": "Covers the widget-embedded Vite app: GuestBridge singleton, IFRAME_PROVIDERS, EthereumIframeProvider, WalletProvider for iframe, initialization sequence (READY signal, INIT response, ecosystem states), and the WidgetEventsBridge for event forwarding.",
+      "parent": "Iframe Integration (widget-light & widget-embedded)",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Settings & User Preferences",
+      "purpose": "Covers the SettingsPage and all user-configurable options: slippage, route priority, gas price tiers, bridge/exchange toggles, small balance filter, theme selection, language selection, and the ResetSettingsButton. Explains how settings persist via Zustand + localStorage.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Internationalization (i18n)",
+      "purpose": "Explains the i18next-based localization system: JSON key schema (button, header, info, warning, error, success, main, settings, format), supported languages (20+), Crowdin integration, dynamic loading, custom formatters (currencyExt, numberExt), and how to add new translations.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
